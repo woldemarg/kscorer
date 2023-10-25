@@ -1,10 +1,23 @@
 from sklearn import datasets
 from sklearn.preprocessing import scale, normalize
-from src.kscorer.kscorer import KScorer
+from kscorer.kscorer import KScorer
 
 # %%
 
 ks = KScorer()
+
+# %%
+
+X, y = datasets.make_blobs(
+    n_samples=10000,
+    n_features=10,
+    centers=5,
+    random_state=1234)
+
+# %%
+
+ks.fit(normalize(scale(X)))
+ks.show()
 
 # %%
 
@@ -20,17 +33,4 @@ X, y = datasets.make_classification(
 # %%
 
 ks.fit(normalize(scale(X)), 10, 40)
-ks.show()
-
-# %%
-
-X, y = datasets.make_blobs(
-    n_samples=10000,
-    n_features=10,
-    centers=5,
-    random_state=1234)
-
-# %%
-
-ks.fit(normalize(scale(X)))
 ks.show()

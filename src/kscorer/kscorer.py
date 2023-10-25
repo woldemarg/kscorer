@@ -12,7 +12,7 @@ from kneefinder import KneeFinder
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import seaborn as sns
-from pmixin import ParallelMixin
+from kscorer.pmixin import ParallelMixin
 
 
 # %%
