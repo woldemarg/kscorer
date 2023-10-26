@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn import datasets
-from src.kscorer.kscorer import KScorer
+from kscorer.kscorer import KScorer
 
 # %%
 
