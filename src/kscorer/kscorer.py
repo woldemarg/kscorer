@@ -8,23 +8,30 @@ from sklearn.metrics import (
     silhouette_score,
     davies_bouldin_score,
     calinski_harabasz_score)
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import (
+    StandardScaler,
+    MinMaxScaler,
+    normalize)
 from kneefinder import KneeFinder
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import seaborn as sns
-from kscorer.pmixin import ParallelMixin
+from src.kscorer.pmixin import ParallelMixin
 
 
 # %%
 
 class KScorer(ParallelMixin):
     def __init__(self,
+                 pca_explained: float = 0.7,
                  nsplits: int = 10,
                  frac: float = 0.15,
                  lmax: int = 5000,
                  lmin: int = 100,
                  random_state: int = 1234):
 
+        self.pca_explained = pca_explained
         self.nsplits = nsplits
         self.frac = frac
         self.lmax = lmax
@@ -34,6 +41,9 @@ class KScorer(ParallelMixin):
         self.peak_scores_ = None
         self.ranked_ = None
         self.scores_ = None
+        self.scaler_before_pca = None
+        self.pca = None
+        self.scaler_after_pca = None
 
     @staticmethod
     def _find_knee(*args):
@@ -209,11 +219,75 @@ class KScorer(ParallelMixin):
 
         return ranks
 
-    def fit(self,
-            *args,
-            **kwargs) -> int:
+    def _choose_scaler_and_pca(self,
+                               data: np.array) -> tuple:
 
-        ranks = self._do_clust(*args, **kwargs)
+        def get_n_components(X_scaled):
+            pca = PCA(random_state=self.random_state)
+            pca.fit(X_scaled)
+            exp_var = pca.explained_variance_ratio_
+            cum_var = exp_var.cumsum()
+            n_components = len(cum_var[cum_var < self.pca_explained]) + 1
+            return n_components
+
+        n_standard = get_n_components(
+            StandardScaler().fit_transform(data))
+
+        n_minmax = get_n_components(
+            MinMaxScaler().fit_transform(data))
+
+        if n_minmax < n_standard:
+            preferred_scaling = 'minmax'
+            n_components = n_minmax
+        else:
+            preferred_scaling = 'standard'
+            n_components = n_standard
+
+        return (preferred_scaling, n_components)
+
+    def _fit_scaler_and_pca(self,
+                            data: np.array,
+                            preferred_scaling: str,
+                            n_components: int) -> np.array:
+
+        scalers = {'standard': StandardScaler(),
+                   'minmax': MinMaxScaler()}
+
+        scaler = scalers[preferred_scaling]
+
+        X_scaled = scaler.fit_transform(data)
+
+        pca = PCA(n_components=n_components,
+                  random_state=self.random_state)
+
+        X_scaled = pca.fit_transform(X_scaled)
+
+        self.scaler_before_pca = scaler
+        self.pca = pca
+
+        return X_scaled
+
+    def fit(self,
+            data,
+            *args,
+            **kwargs):
+
+        data = data.values if isinstance(data, pd.DataFrame) else data
+
+        sample = data[next(self._cv_gen(data, self.random_state))]
+
+        preferred_scaling, n_components = self._choose_scaler_and_pca(sample)
+
+        data_scaled = self._fit_scaler_and_pca(
+            data,
+            preferred_scaling,
+            n_components)
+
+        scaler = StandardScaler()
+
+        data = normalize(scaler.fit_transform(data_scaled))
+
+        ranks = self._do_clust(data, *args, **kwargs)
 
         peaks = scipy.signal.argrelmax(ranks.values, mode='clip')[0]
 
@@ -223,8 +297,11 @@ class KScorer(ParallelMixin):
         optimal = ranks.iloc[peaks].idxmax()
         peak_scores = ranks.iloc[peaks].to_dict()
 
+        self.scaler_after_pca = scaler
         self.optimal_ = optimal
         self.peak_scores_ = peak_scores
+
+        return self
 
     def show(self):
 
@@ -276,3 +353,25 @@ class KScorer(ParallelMixin):
         sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1))
 
         plt.show()
+
+    def get_labels(self,
+                   data: np.array) -> np.array:
+
+        data = data.values if isinstance(data, pd.DataFrame) else data
+
+        if self.optimal_:
+
+            X_scaled = normalize(
+                self.scaler_after_pca.transform(
+                    self.pca.transform(
+                        self.scaler_before_pca.transform(
+                            data))))
+
+            labels = self.kmeans_clustering(
+                X_scaled,
+                self.optimal_,
+                retall=False)
+
+            return labels
+
+        return None

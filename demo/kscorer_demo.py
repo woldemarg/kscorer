@@ -1,6 +1,7 @@
+import numpy as np
+import pandas as pd
 from sklearn import datasets
-from sklearn.preprocessing import scale, normalize
-from kscorer.kscorer import KScorer
+from src.kscorer.kscorer import KScorer
 
 # %%
 
@@ -8,29 +9,27 @@ ks = KScorer()
 
 # %%
 
-X, y = datasets.make_blobs(
-    n_samples=10000,
-    n_features=10,
-    centers=5,
-    random_state=1234)
-
-# %%
-
-ks.fit(normalize(scale(X)))
-ks.show()
-
-# %%
-
 X, y = datasets.make_classification(
-    n_samples=250000,
+    n_samples=25000,
     n_features=10,
     n_informative=8,
-    n_classes=25,
+    n_classes=9,
     n_clusters_per_class=1,
     class_sep=1.5,
     random_state=1234)
 
+
 # %%
 
-ks.fit(normalize(scale(X)), 10, 40)
+ks.fit(X)
 ks.show()
+
+# %%
+
+labels = ks.get_labels(X)
+
+labels_mtx = pd.Series(y).groupby([labels, y]).count().unstack()
+
+order = np.nanargmax(labels_mtx, axis=1)
+
+labels_mtx[order]
