@@ -23,8 +23,9 @@ from kscorer.pmixin import ParallelMixin
 # %%
 
 class KScorer(ParallelMixin):
+
     def __init__(self,
-                 pca_explained: float = 0.7,
+                 pca_explained: float = 0.65,
                  nsplits: int = 10,
                  frac: float = 0.15,
                  lmax: int = 5000,
@@ -44,6 +45,7 @@ class KScorer(ParallelMixin):
         self.scaler_before_pca = None
         self.pca = None
         self.scaler_after_pca = None
+        self.res_ = None
 
     @staticmethod
     def _find_knee(*args):
@@ -91,6 +93,9 @@ class KScorer(ParallelMixin):
                        num_clusters: int,
                        wss: float) -> float:
 
+        # https://stackoverflow.com/a/35379657/6025592
+        # https://github.com/TankredO/pyckmeans/blob/main/pyckmeans/core/ckmeans.py#L61
+
         return (num_samples * np.log(wss / num_samples) +
                 np.log(num_samples) * num_clusters)
 
@@ -130,12 +135,16 @@ class KScorer(ParallelMixin):
     def kmeans_clustering(self,
                           data: np.ndarray,
                           n_clusters: int,
-                          retall: bool = True) -> tuple:
+                          retall: bool = True,
+                          **kwargs) -> tuple:
+
+        init = kwargs.get('init', 'k-means++')
 
         kmeans = KMeans(
             n_clusters=n_clusters,
-            random_state=self.random_state,
-            n_init='auto')
+            init=init,
+            n_init='auto',
+            random_state=self.random_state)
 
         labels = kmeans.fit_predict(data)
 
@@ -158,10 +167,17 @@ class KScorer(ParallelMixin):
             warnings.simplefilter('ignore')
             labels, centroids, inertia = self.kmeans_clustering(data, n_clusters)
 
+        # https://scikit-learn.org/stable/modules/clustering.html#silhouette-coefficient
         score_silhouette = silhouette_score(data, labels)
+
+        # https://scikit-learn.org/stable/modules/clustering.html#calinski-harabasz-index
         score_calinski = calinski_harabasz_score(data, labels)
+
         score_dunn = self._calculate_dunn_index(data, labels, centroids)
+
+        # https://scikit-learn.org/stable/modules/clustering.html#davies-bouldin-index
         score_davis = davies_bouldin_score(data, labels)
+
         score_bic = self._calculate_bic(
             num_samples=data.shape[0],
             num_clusters=len(np.unique(labels)),
@@ -201,7 +217,8 @@ class KScorer(ParallelMixin):
     def _do_clust(self,
                   data: np.array,
                   start: int = 3,
-                  stop: int = 15) -> pd.DataFrame:
+                  stop: int = 15,
+                  **kwargs) -> pd.DataFrame:
 
         clusts = list(range(start, stop + 1))
 
@@ -268,7 +285,7 @@ class KScorer(ParallelMixin):
         return X_scaled
 
     def fit(self,
-            data,
+            data: np.array,
             *args,
             **kwargs):
 
@@ -276,6 +293,7 @@ class KScorer(ParallelMixin):
 
         sample = data[next(self._cv_gen(data, self.random_state))]
 
+        # https://scikit-learn.org/stable/auto_examples/preprocessing/plot_scaling_importance.html
         preferred_scaling, n_components = self._choose_scaler_and_pca(sample)
 
         data_scaled = self._fit_scaler_and_pca(
@@ -287,6 +305,9 @@ class KScorer(ParallelMixin):
 
         data = normalize(scaler.fit_transform(data_scaled))
 
+        # https://stats.stackexchange.com/a/187089/363056
+        # https://365datascience.com/tutorials/python-tutorials/pca-k-means/
+        # https://ranger.uta.edu/~chqding/papers/KmeansPCA1.pdf
         ranks = self._do_clust(data, *args, **kwargs)
 
         peaks = scipy.signal.argrelmax(ranks.values, mode='clip')[0]
@@ -349,29 +370,43 @@ class KScorer(ParallelMixin):
         ax.set(xlabel='Number of Clusters', ylabel='Ranked Scores')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
+        # https://seaborn.pydata.org/generated/seaborn.move_legend.html
         ax.legend(frameon=False)
         sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1))
 
         plt.show()
 
-    def get_labels(self,
-                   data: np.array) -> np.array:
+    def predict(self,
+                data: np.array,
+                n_clusters: int = None,
+                retall=False,
+                **kwargs) -> np.array:
 
         data = data.values if isinstance(data, pd.DataFrame) else data
 
-        if self.optimal_:
+        n_clusters = n_clusters if n_clusters else self.optimal_
 
+        if n_clusters:
+
+            # https://datascience.stackexchange.com/a/36003/101016
             X_scaled = normalize(
                 self.scaler_after_pca.transform(
                     self.pca.transform(
                         self.scaler_before_pca.transform(
                             data))))
 
-            labels = self.kmeans_clustering(
-                X_scaled,
-                self.optimal_,
-                retall=False)
+            res = self.kmeans_clustering(
+                data=X_scaled,
+                n_clusters=n_clusters,
+                retall=retall,
+                **kwargs)
 
-            return labels
+            self.res_ = res
+
+            return res
 
         return None
+
+    def fit_predict(self, *args, **kwargs):
+        res = self.fit(*args, **kwargs).predict(*args, **kwargs)
+        return res
