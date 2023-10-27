@@ -88,7 +88,7 @@ Out[12]: 0.646615365026082
 ```
 ___
 
-#### ToDo:
+### ToDo:
 - apply power-transform before initial scaling-
 - consider [pyckmeans](https://pypi.org/project/pyckmeans)
 - consider [pyxmeans](https://github.com/mynameisfiber/pyxmeans)
