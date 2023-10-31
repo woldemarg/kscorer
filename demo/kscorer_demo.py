@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn import datasets
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
 from kscorer.kscorer import KScorer
 
 # %%
@@ -23,6 +24,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 labels, centroids, _ = ks.fit_predict(X_train, retall=True)
 
+# to make vectors precisely normalized
+centroids = normalize(centroids)
+
 # %%
 
 ks.show()
@@ -39,7 +43,7 @@ labels_mtx = (pd.Series(y_train)
               .unstack()
               .fillna(0))
 
-# match arbitrary labely to ground-truth labels
+# match arbitrary labels to ground-truth labels
 order = []
 
 for i, r in labels_mtx.iterrows():

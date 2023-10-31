@@ -47,7 +47,7 @@ In [8]: labels_mtx = (pd.Series(y_train)
    ...:               .count()
    ...:               .unstack()
    ...:               .fillna(0))
-   ...: # match arbitrary labely to ground-truth labels
+   ...: # match arbitrary labels to ground-truth labels
    ...: order = []
    ...: 
    ...: for i, r in labels_mtx.iterrows():
@@ -92,3 +92,4 @@ ___
 - apply power-transform before initial scaling-
 - consider [pyckmeans](https://pypi.org/project/pyckmeans)
 - consider [pyxmeans](https://github.com/mynameisfiber/pyxmeans)
+- consider [spherecluster](https://github.com/jasonlaska/spherecluster)

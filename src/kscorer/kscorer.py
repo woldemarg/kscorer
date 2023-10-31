@@ -389,6 +389,8 @@ class KScorer(ParallelMixin):
         if n_clusters:
 
             # https://datascience.stackexchange.com/a/36003/101016
+            # https://medium.com/ai-for-real/relationship-between-cosine-similarity-and-euclidean-distance-7e283a277dff
+            # https://stats.stackexchange.com/q/146221/363056
             X_scaled = normalize(
                 self.scaler_after_pca.transform(
                     self.pca.transform(
