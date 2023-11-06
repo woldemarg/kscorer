@@ -5,6 +5,7 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 from kscorer.kscorer import KScorer
+from prosphera.projector import Projector
 
 # %%
 
@@ -47,8 +48,11 @@ labels_mtx = (pd.Series(y_train)
 order = []
 
 for i, r in labels_mtx.iterrows():
-    left = [x for x in np.unique(y_train) if x not in order]
-    order.append(r.iloc[left].idxmax())
+    try:
+        left = [x for x in np.unique(y) if x not in order]
+        order.append(r.iloc[left].idxmax())
+    except ValueError:
+        break
 
 confusion_mtx = labels_mtx[order]
 confusion_mtx
@@ -69,3 +73,12 @@ balanced_accuracy_score(y_train, y_clustd)
 # %%
 
 balanced_accuracy_score(y_test, y_unseen)
+
+# %%
+
+visualizer = Projector()
+
+visualizer.project(
+    data=X_train,
+    labels=y_clustd,
+    meta=y_train)

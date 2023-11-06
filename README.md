@@ -1,6 +1,9 @@
 KScorer: Auto-select optimal K-means clusters with advanced scoring
 
 ### Basic Usage
+
+> LIVE demo-notebook is [here](https://jovian.com/wldmrgml/kscorer-demo)
+
 #### Load Modules
 ```python
 In [1]: import numpy as np
@@ -56,6 +59,7 @@ In [8]: labels_mtx = (pd.Series(y_train)
    ...: 
    ...: confusion_mtx = labels_mtx[order]
    ...: confusion_mtx
+Out[8]:
 ```
 |   	| 5     	| 9    	| 4     	| 2     	| 0     	| 6     	| 1    	| 7     	| 8    	| 3    	|
 |---	|-------	|------	|-------	|-------	|-------	|-------	|------	|-------	|------	|------	|
@@ -89,7 +93,7 @@ Out[12]: 0.646615365026082
 ___
 
 ### ToDo:
-- apply power-transform before initial scaling-
+- consider applying power-transform before initial scaling
 - consider [pyckmeans](https://pypi.org/project/pyckmeans)
 - consider [pyxmeans](https://github.com/mynameisfiber/pyxmeans)
 - consider [spherecluster](https://github.com/jasonlaska/spherecluster)
